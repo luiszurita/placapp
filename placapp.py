@@ -6,8 +6,8 @@
 import pywebio #requires: tornado and user-agents
 import datetime
 import re
-from pywebio.input import input, checkbox, TEXT, DATE, TIME
-from pywebio.output import put_text
+from pywebio.input import input, checkbox, DATE, TIME
+from pywebio.output import put_text, put_markdown, put_table, put_html
 
 def pipa():
     def check_plate(lic):
@@ -19,7 +19,7 @@ def pipa():
                                                       ,required=True
                                                       ,validate=check_plate)
 
-    last_digit = str(license)[-1]
+    last_digit = int(str(license)[-1])
 
     c_date_time = checkbox(options=['use current date', 'use current time'],
                            help_text='The fields not chosen will then be entered manually')
@@ -41,16 +41,75 @@ def pipa():
                   'Wednesday':(5,6),'Thursday':(7,8),
                   'Friday':(9,0)}
 
+    for days in day_plates.values():
+        if last_digit in days:
+            no_transit_day = list(day_plates.keys())[list(day_plates.values()).index(days)]
+
     b1 = datetime.datetime.now().replace(hour=7, minute=0).strftime("%H:%M")
-    print(b1)
+    e1 = datetime.datetime.now().replace(hour=9, minute=30).strftime("%H:%M")
+    b2 = datetime.datetime.now().replace(hour=16, minute=0).strftime("%H:%M")
+    e2 = datetime.datetime.now().replace(hour=19, minute=30).strftime("%H:%M")
 
-    # if weekday in day_plates.keys():
-    #     if last_digit in day_plates[weekday]:
-    #         if (my_time > my)
+    # time_compare method compares two time strings and returns:
+    # 0 if the first input is the greatest
+    # 1 if the inputs are equal
+    # 2 if the second input is the greatest
+    def time_compare(t1,t2):
+        t1_h, t1_m = t1.split(':')
+        t2_h, t2_m = t2.split(':')
+        if int(t1_h) > int(t2_h):
+            return 0
+        elif int(t1_h) == int(t2_h):
+            if int(t1_m) > int(t2_m):
+                return 0
+            elif int(t1_m) == int(t2_m):
+                return 1
+            elif int(t1_m) < int(t2_m):
+                return 2
+        elif int(t1_h) < int(t2_h):
+            return 2
 
-    #TODO find way to compare time to raise flags
+    should_transit = None
+
+    if weekday in day_plates.keys():
+        if last_digit in day_plates[weekday]:
+            if time_compare(my_time,b1) <= 1 and time_compare(my_time,e1) >= 1:
+                print('the car  should not be on the street time 1')
+                should_transit = False
+            elif time_compare(my_time,b2) <= 1 and time_compare(my_time,e2) >= 1:
+                print('the car  should not be on the street time 2')
+                should_transit = False
+            else:
+                print('the car is good to transit, date,num, notime')
+                should_transit = True
+        else:
+            print('the car is good to transit, date, no num')
+            should_transit = True
+    else:
+        print('the car is good to transit, no date')
+        should_transit = True
+
+    if should_transit == False:
+        put_markdown('# **The vehicle with the plate %s should NOT be transiting on %s at %s**'%(license,my_date,my_time))
+        put_html('<hr>')
+        put_table([
+                  ["Vehicle's Licese Plate",'Last Digit','No Transit Day',],
+                  [license, last_digit, no_transit_day]
+        ])
+    else:
+        put_markdown('# **The vehicle with the plate %s is OK to be transiting on %s at %s**'%(license,my_date,my_time))
+        put_html('<hr>')
+        put_table([
+                  ["Vehicle's Licese Plate",'Last Digit','No Transit Day',],
+                  [license, last_digit, no_transit_day]
+        ])
+
+    #TODO raise flags
     # add input for previous sanctions to calculate fine ammount
-    
+    # add bashe file to run tests?
+
+
+
     print(my_date)
     print(weekday)
     print(my_time)
